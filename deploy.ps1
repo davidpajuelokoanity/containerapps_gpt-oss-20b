@@ -192,21 +192,6 @@ function Initialize-EnvironmentConfiguration {
 }
 
 function Initialize-ResourceGroup {
-    <#
-    .SYNOPSIS
-        Resource_Groupを作成する（既存の場合は再利用する）。
-    .DESCRIPTION
-        Requirements: 2.1, 2.2
-        design.md の「Azure CLIコマンドのシーケンス」手順3に従い、`az group create` を実行する。
-        `az group create` はAzure CLI自体が冪等であるため、既存のResource_Groupに対して実行しても
-        エラーにならず成功する。そのため、事前の存在確認（`az group show`）は行わない。
-        コマンドが非0終了コードを返した場合は、エラーメッセージを表示してスクリプトを中断する
-        （呼び出し元で `exit 1` させるため例外をスローする）。
-    .PARAMETER ResourceGroupName
-        作成（または再利用）対象のResource_Group名。
-    .PARAMETER Location
-        Resource_Groupを作成するAzureリージョン。
-    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -216,14 +201,23 @@ function Initialize-ResourceGroup {
         [string]$Location
     )
 
+    # Si el Resource Group ya existe, reutilizarlo sin comprobar ubicación
+    az group show --name $ResourceGroupName --output json 2>$null | Out-Null
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Resource Group '$ResourceGroupName' ya existe. Se reutilizará."
+        return
+    }
+
+    # Si no existe, crearlo en la ubicación indicada
     az group create --name $ResourceGroupName --location $Location --output json | Out-Null
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Resource_Groupの作成に失敗しました（名前: $ResourceGroupName, リージョン: $Location）。"
+        Write-Error "No se pudo crear el Resource Group '$ResourceGroupName'."
         throw 'ResourceGroupCreateFailed'
     }
 
-    Write-Host "Resource Group '$ResourceGroupName' の準備が完了しました。"
+    Write-Host "Resource Group '$ResourceGroupName' creado correctamente."
 }
 
 function Assert-RegionGpuSupported {
@@ -348,7 +342,12 @@ function Add-GpuWorkloadProfile {
     if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($envJson)) {
         $envObject = $envJson | ConvertFrom-Json
         $existingProfiles = @($envObject.properties.workloadProfiles)
-        $profileExists = @($existingProfiles | Where-Object { $_.name -eq $WorkloadProfile.FriendlyName }).Count -gt 0
+        $profileExists = @(
+    $existingProfiles | Where-Object {
+        $_.name -eq $WorkloadProfile.FriendlyName -or
+        $_.workloadProfileType -eq $WorkloadProfile.ProfileType
+    }
+        ).Count -gt 0
     }
 
     $action = Get-ResourceAction -Exists $profileExists

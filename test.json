@@ -1,0 +1,5 @@
+{
+  "model": "gemma4:31b",
+  "prompt": "Di hola en español",
+  "stream": false
+}

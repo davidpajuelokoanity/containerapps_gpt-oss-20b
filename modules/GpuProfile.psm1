@@ -14,13 +14,13 @@ Set-StrictMode -Version Latest
 $script:WorkloadProfiles = @{
     'T4'   = @{
         ProfileType   = 'Consumption-GPU-NC8as-T4'
-        FriendlyName  = 'Consumption-GPU-NC8as-T4'
+        FriendlyName  = 't4'
         MaxCpu        = 8
         MaxMemoryGiB  = 56
     }
     'A100' = @{
         ProfileType   = 'Consumption-GPU-NC24-A100'
-        FriendlyName  = 'Consumption-GPU-NC24-A100'
+        FriendlyName  = 'a100'
         MaxCpu        = 24
         MaxMemoryGiB  = 220
     }
